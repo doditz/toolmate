@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:24.10
 
 # To build:
 # > docker build -t ubuntu-shell --build-arg UID=$(id -u) --build-arg USER=$(whoami) .
