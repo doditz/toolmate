@@ -86,6 +86,8 @@ class ApplicationState:
     search_pattern = ""
     replace_pattern = ""
     clipboard = PyperclipClipboard()
+    exit_without_saving = False
+    allow_go_to_end = True
 
 def get_statusbar_text():
     return " [esc-m] menu [ctrl+k] help "
@@ -673,7 +675,7 @@ def do_help():
     webbrowser.open("https://github.com/eliranwong/eTextEdit")
 
 def do_exit():
-    check_changes_before_execute(get_app().exit)
+    get_app().exit() if ApplicationState.exit_without_saving else check_changes_before_execute(get_app().exit)
 
 def do_time_date():
     text = datetime.datetime.now().isoformat()
@@ -682,6 +684,11 @@ def do_time_date():
 def do_add_spaces(event=None):
     buffer = event.app.current_buffer if event is not None else text_field.buffer
     buffer.insert_text("    ")
+
+def do_go_to_end_once(_):
+    if ApplicationState.allow_go_to_end:
+        text_field.buffer.cursor_position = len(text_field.text)
+        ApplicationState.allow_go_to_end = False
 
 def do_go_to():
     async def coroutine():
@@ -889,10 +896,11 @@ combined_style = merge_styles([
 
 layout = Layout(root_container, focused_element=text_field)
 
-def update_title():
-    set_title(f'''eTextEdit - {os.path.basename(ApplicationState.current_path) if ApplicationState.current_path else "NEW"}''')
+def update_title(customTitle=None):
+    set_title(customTitle if customTitle is not None else f'''eTextEdit - {os.path.basename(ApplicationState.current_path) if ApplicationState.current_path else "NEW"}''')
 
-def launch(input_text=None, filename=None):
+def launch(input_text=None, filename=None, exitWithoutSaving=False, customTitle=None):
+    ApplicationState.exit_without_saving = exitWithoutSaving
     if filename and os.path.isfile(filename):
         try:
             with open(filename, "r", encoding="utf-8") as fileObj:
@@ -904,7 +912,7 @@ def launch(input_text=None, filename=None):
     if filename:
         ApplicationState.current_path = filename
         ApplicationState.saved_text = fileText
-    update_title()
+    update_title(customTitle)
     if filename and input_text:
         # append file text with input text
         text_field.text = f"{fileText}\n{input_text}"
@@ -922,6 +930,7 @@ def launch(input_text=None, filename=None):
         full_screen=True,
         input=input,
         clipboard=ApplicationState.clipboard,
+        before_render=do_go_to_end_once if exitWithoutSaving else None,
     )
     application.run()
     clear_title()
@@ -974,6 +983,7 @@ def main():
     else:
         text = launch()
     #print(text)
+    return text
 
 if __name__ == "__main__":
     main()
